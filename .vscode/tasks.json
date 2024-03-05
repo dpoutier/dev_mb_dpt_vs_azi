@@ -1,0 +1,50 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "MapBasic Build MB",
+            "type": "shell",
+            "command": "D:\\softs\\mapbasic2019\\MAPBASIC.exe -d -Nosplash ${file}",            
+            "problemMatcher": []
+        },
+        {
+            "label": "MapBasic Get Error",
+            "type": "process",
+            "command": "mb.bat",   
+            "args": ["${file}"],
+            "dependsOn": ["MapBasic Build MB"]        
+        },
+        {
+            "label": "MapBasic Compilation & Get Error",
+            "dependsOn": ["MapBasic Build MB","MapBasic Get Error"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        } ,
+        {
+            "label": "MapBasic run 2",
+            "type": "process",
+            "command": "${workspaceFolder}\\Mi_Menu_Ctx_OpenExplorer.MBX",
+                        "presentation": {
+                "showReuseMessage": true,
+                "reveal": "silent",
+                "panel": "shared"
+            },            
+            "problemMatcher": {
+                "owner": "mapbasic",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}"
+                ],
+                "pattern": {
+                    "regexp": "^\\((.*):(\\d+)\\)\\s*(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "message": 3
+                }
+            }
+        }
+    ]
+}

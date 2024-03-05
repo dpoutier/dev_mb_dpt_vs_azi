@@ -1,0 +1,187 @@
+'*****************************************************************************
+'*       Copyright 2023 Covea.
+'*       All rights reserved.
+'****************************************************************************
+' Extract SP from parcelles by addresses
+'  
+'****************************************************************************
+Include "MENU.DEF"
+Include "MAPBASIC.DEF"
+
+' MapBasic Main Routines
+Declare Sub Main
+Declare Sub ExitSubMain
+Declare Sub OpenTable(spTableDir as String, spTableName as String, spTableAlias as String)
+
+'------------------------------------------------------------------------------
+' Main
+'------------------------------------------------------------------------------
+Sub Main()
+
+	Dim sum As Float, counter As Integer
+	Dim sDptDir 		As String		
+	Dim sDptName 		As String
+	Dim sDptAlias 		As String
+	Dim sDptCode		As String
+	Dim sDptLib			As String
+	Dim sDptSel			As String
+
+	Dim sAziDir 		As String	
+	Dim sAziName 		As String
+	Dim sAziAlias 		As String
+	Dim sAziSel 		As String
+	
+
+
+	
+
+	Dim sResultsDir 			As String
+	Dim sResultsName 			As String
+
+		Print "************************"
+
+  		Print "Starting..." & FormatTime$(CurTime(), "H:mm:ss")
+
+		sDptDir 			=	"D:\\Datas\\Cartes\\franciemescommunaux2014\\"
+		sAziDir 			=	"D:\\working\\projets\\inondation\\"	
+		
+
+		sResultsDir 		=	"D:\\working\\projets\\inondation\\process\\"
+		sResultsName 		=	"DPT_vs_AZI_OverLap"
+
+
+		sDptName 			=	"France_Departements_4326"
+		sAziName	 		=	"AZI_COVEA_2023_CLEAN_AREA_NOT_NULL"
+		
+
+		sDptAlias 			=	"TableDpt"
+		sAziAlias	 		=	"TableAzi"
+
+		sAziSel				=	"AziSel"
+		sDptSel				=	"T1DPTSel"
+
+	
+		Close all
+				
+		Call OpenTable(sDptDir, 			sDptName, sDptAlias )
+
+		
+		
+		'call OpenTable(sBaseBatiDir, 	sBaseBatiName, sBaseBatiAlias)		
+		'select * from sBaseBatiName as "T1" where T1.piscine=1 into TableBaseBatiPiscines
+		'Commit Table TableBaseBatiPiscines As "D:\working\projets\etudes\gmf\marketing\2023_03_17\datas\bi_park_piscines.TAB" 
+
+		'Selection des adresses bien geocodees
+		'print "Selection des adresses bien geocodees"
+		'call OpenTable(sClientsDir , 	sClientsName, sClientsAlias)
+		'Select * from sClientsAlias as "T1" where T1.geocodeType=4  into sClientsGeoc4Alias
+		'print "Selection des parcelles avec piscines"
+
+		'Call OpenTable(sAziDir, 	sAziName, 	sAziAlias)
+		
+		
+		Map From TableDPT 	
+		Set Map Zoom 10000 Units "m"
+		
+		Create Table sResultsName ( Code Char (5),	Area_Dpt Float, Area_Overlap Float ) File sResultsDir & sResultsName  & ".tab"
+		
+		Call OpenTable(sResultsDir , 	sResultsName , sResultsName )
+		'Create Map For sResultsName  CoordSys Earth Projection 1, 104
+		
+		
+
+		
+		Call OpenTable(sAziDir, 	sAziName, 	sAziAlias)
+		Fetch First From TableDPT 
+		Do While Not EOT(TableDPT ) 
+			sDptCode 	=	TableDPT.Code
+			sDptLib 	=	TableDPT.Nom
+
+
+			if val(sDptCode)>0 Then
+				print "Traitement de " & sDptLib  & " (" &  sDptCode  & " )"
+
+				Select T1.Code, T1.obj  from TableDPT as "T1"  where T1.Code =  sDptCode   into T1DPTSel
+				Commit Table T1DPTSel As sResultsDir & "T1DPTSel.TAB" TYPE NATIVE Charset "WindowsLatin1" Interactive
+				Close table T1DPTSel 
+				Call OpenTable(sResultsDir, 	sDptSel, 	sDptSel)
+				Select *  from T1DPTSel
+				Add Map Layer T1DPTSel
+				
+				Set Map Zoom Entire Selection
+
+				sum  = sum  + 1 
+				Set Event Processing Off
+				'Selection des AZI dans le dpt
+				print "Début sélection des AZI // " & FormatTime$(CurTime(), "H:mm:ss")
+				Select T1.* from sAziAlias as "T1" , T1DPTSel as "T2" where T1.Obj Intersects T2.Obj into sAziSel 
+				print "Fin sélection des AZI // " & FormatTime$(CurTime(), "H:mm:ss")
+
+				Commit Table sAziSel As sResultsDir & "AziSel.TAB" TYPE NATIVE Charset "WindowsLatin1" Interactive
+				Close table sAziSel 
+				Call OpenTable(sResultsDir, 	sAziSel, 	sAziSel)
+
+				Select * from sAziSel
+				Objects Combine DropIndex Off
+				Commit Table sAziSel
+				Pack Table AziSel
+
+				Close table sAziSel 
+				Call OpenTable(sResultsDir, 	sAziSel, 	sAziSel)
+
+				print "Calcul de l'overlap"
+				Set Area Units "sq m" 
+				Select T1DPTSel.Code, Area(T1DPTSel.Obj , "sq m") "Area_Dpt", 
+					sum(AreaOverlap(T1DPTSel.object, AziSel.obj)) "Area_Overlap" 
+					from T1DPTSel, AziSel 
+					where T1DPTSel.Obj intersects AziSel.Obj into SelectionArea
+
+				Insert Into sResultsName (Code, Area_Dpt, Area_Overlap) Select Code, Area_Dpt, Area_Overlap From SelectionArea DropIndex Off
+
+				'Selection des parcelles dans le dpt
+				' Select * from TableBaseBatiSP as "T1" , T1DPTSel as "T2" where T1.Obj Within T2.Obj into TableBaseBatiSPSel
+	
+				' print "Recherche de proximite"
+				' Nearest From table TableBaseClientsGeoc4Sel  to TableBaseBatiSPSel into sResultsName 
+				' 	Type Spherical  Ignore Max 50 Units "m"
+				' 	Data NUPOLI=TableBaseClientsGeoc4Sel.NUPOLI, NUMRISQ=TableBaseClientsGeoc4Sel.NUMRISQ, 
+				' 	colDist = ObjectDistance(TableBaseClientsGeoc4Sel.obj,TableBaseBatiSPSel.obj,"m"),
+				' 	x= TableBaseClientsGeoc4Sel.x, 
+ 				' 	y= TableBaseClientsGeoc4Sel.y
+
+				Commit Table sResultsName
+				Close table T1DPTSel 
+				Close table AziSel 
+			End If
+			'Exit Do
+			Fetch Next From TableDPT
+		Loop 
+
+		
+
+		
+
+  		Print "Finishing..." & FormatTime$(CurTime(), "H:mm:ss")
+		Print "************************"
+
+
+End Sub
+
+'------------------------------------------------------------------------------
+' Exit Program
+'------------------------------------------------------------------------------
+Sub OpenTable(spTableDir as String, spTableName as String, spTableAlias as String)
+
+	print "Ouverture de " & spTableName & ".TAB"
+  	Open Table spTableDir & spTableName & ".TAB" as spTableAlias 	
+
+End Sub
+
+
+'------------------------------------------------------------------------------
+' ExitAutoLabels
+'------------------------------------------------------------------------------
+Sub ExitSubMain
+  End Program
+End Sub
+
