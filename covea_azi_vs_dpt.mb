@@ -98,7 +98,7 @@ Sub Main()
 			sDptLib 	=	TableDPT.Nom
 
 
-			if val(sDptCode)>=8 And val(sDptCode)<20 Then
+			if val(sDptCode)>=30 And val(sDptCode)<50 Then
 				print "Traitement de " & sDptLib  & " (" &  sDptCode  & " )"
 
 				Select T1.Code, T1.obj  from TableDPT as "T1"  where T1.Code =  sDptCode   into T1DPTSel
