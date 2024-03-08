@@ -98,7 +98,7 @@ Sub Main()
 			sDptLib 	=	TableDPT.Nom
 
 
-			if val(sDptCode)>=30 And val(sDptCode)<50 Then
+			if val(sDptCode)>=50 And val(sDptCode)<500 Then
 				print "Traitement de " & sDptLib  & " (" &  sDptCode  & " )"
 
 				Select T1.Code, T1.obj  from TableDPT as "T1"  where T1.Code =  sDptCode   into T1DPTSel
@@ -122,7 +122,9 @@ Sub Main()
 				Call OpenTable(sResultsDir, 	sAziSel, 	sAziSel)
 
 				Select * from sAziSel
-				Objects Combine DropIndex Off
+				OnError Goto pass
+				Objects Combine DropIndex On
+				pass:
 				Commit Table sAziSel
 				Pack Table AziSel
 
@@ -131,11 +133,13 @@ Sub Main()
 
 				print "Calcul de l'overlap"
 				Set Area Units "sq m" 
+				OnError Goto pass2
 				Select T1DPTSel.Code, Area(T1DPTSel.Obj , "sq m") "Area_Dpt", 
 					sum(AreaOverlap(T1DPTSel.object, AziSel.obj)) "Area_Overlap" 
 					from T1DPTSel, AziSel 
 					where T1DPTSel.Obj intersects AziSel.Obj into SelectionArea
 
+				pass2:
 				Insert Into sResultsName (Code, Area_Dpt, Area_Overlap) Select Code, Area_Dpt, Area_Overlap From SelectionArea DropIndex Off
 
 				'Selection des parcelles dans le dpt
